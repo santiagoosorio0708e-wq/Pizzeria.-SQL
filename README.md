@@ -28,18 +28,23 @@ A continuación, se presentan las soluciones a las consultas solicitadas, organi
 
 ### 1. Productos más vendidos (pizza, panzarottis, bebidas, etc.)
 ```sql
-SELECT p.nombre, SUM(pp.cantidad) AS total_vendidos
-FROM pedido_productos pp
-JOIN productos p ON pp.producto_id = p.id
+SELECT p.nombre, SUM(v.cantidad) AS total_vendidos
+FROM productos p
+JOIN (
+    SELECT producto_id, cantidad FROM pedido_productos
+    UNION ALL
+    SELECT cp.producto_id, pc.cantidad * cp.cantidad 
+    FROM pedido_combos pc JOIN combo_productos cp ON pc.combo_id = cp.combo_id
+) AS v ON p.id = v.producto_id
 GROUP BY p.id, p.nombre
 ORDER BY total_vendidos DESC;
 ```
 
 ### 2. Total de ingresos generados por cada combo
 ```sql
-SELECT c.nombre, SUM(pc.subtotal) AS ingresos_totales
-FROM pedido_combos pc
-JOIN combos c ON pc.combo_id = c.id
+SELECT c.nombre, COALESCE(SUM(pc.subtotal), 0) AS ingresos_totales
+FROM combos c
+LEFT JOIN pedido_combos pc ON c.id = pc.combo_id
 GROUP BY c.id, c.nombre;
 ```
 
@@ -52,29 +57,39 @@ GROUP BY tipo_pedido;
 
 ### 4. Adiciones más solicitadas en pedidos personalizados
 ```sql
-SELECT a.nombre, SUM(pa.cantidad) AS cantidad_solicitada
-FROM pedido_adiciones pa
-JOIN adiciones a ON pa.adicion_id = a.id
+SELECT a.nombre, COALESCE(SUM(pa.cantidad), 0) AS cantidad_solicitada
+FROM adiciones a
+LEFT JOIN pedido_adiciones pa ON a.id = pa.adicion_id
 GROUP BY a.id, a.nombre
 ORDER BY cantidad_solicitada DESC;
 ```
 
 ### 5. Cantidad total de productos vendidos por categoría
 ```sql
-SELECT c.nombre AS categoria, SUM(pp.cantidad) AS total_vendidos
-FROM pedido_productos pp
-JOIN productos p ON pp.producto_id = p.id
-JOIN categorias c ON p.categoria_id = c.id
+SELECT c.nombre AS categoria, COALESCE(SUM(v.cantidad), 0) AS total_vendidos
+FROM categorias c
+LEFT JOIN productos p ON c.id = p.categoria_id
+LEFT JOIN (
+    SELECT producto_id, cantidad FROM pedido_productos
+    UNION ALL
+    SELECT cp.producto_id, pc.cantidad * cp.cantidad 
+    FROM pedido_combos pc JOIN combo_productos cp ON pc.combo_id = cp.combo_id
+) AS v ON p.id = v.producto_id
 GROUP BY c.id, c.nombre;
 ```
 
 ### 6. Promedio de pizzas pedidas por cliente
 ```sql
-SELECT cl.nombre AS cliente, AVG(pp.cantidad) AS promedio_pizzas_por_pedido
+SELECT cl.nombre AS cliente, COALESCE(AVG(v.cantidad), 0) AS promedio_pizzas_por_pedido
 FROM clientes cl
 JOIN pedidos pd ON cl.id = pd.cliente_id
-JOIN pedido_productos pp ON pd.id = pp.pedido_id
-JOIN productos p ON pp.producto_id = p.id
+JOIN (
+    SELECT pedido_id, producto_id, cantidad FROM pedido_productos
+    UNION ALL
+    SELECT pc.pedido_id, cp.producto_id, pc.cantidad * cp.cantidad 
+    FROM pedido_combos pc JOIN combo_productos cp ON pc.combo_id = cp.combo_id
+) AS v ON pd.id = v.pedido_id
+JOIN productos p ON v.producto_id = p.id
 JOIN categorias c ON p.categoria_id = c.id
 WHERE c.nombre = 'Pizzas'
 GROUP BY cl.id, cl.nombre;
@@ -89,7 +104,7 @@ GROUP BY dia_semana;
 
 ### 8. Cantidad de panzarottis vendidos con extra queso
 ```sql
-SELECT SUM(pp.cantidad) AS panzarottis_extra_queso
+SELECT COALESCE(SUM(pp.cantidad), 0) AS panzarottis_extra_queso
 FROM pedido_productos pp
 JOIN productos p ON pp.producto_id = p.id
 JOIN pedido_adiciones pa ON pp.id = pa.pedido_producto_id
@@ -114,17 +129,24 @@ WHERE c.nombre = 'Bebidas';
 SELECT cl.nombre, COUNT(pd.id) AS total_pedidos
 FROM clientes cl
 JOIN pedidos pd ON cl.id = pd.cliente_id
-WHERE pd.fecha >= DATE_SUB(CURRENT_DATE, INTERVAL 1 MONTH)
+WHERE pd.fecha >= DATE_SUB((SELECT MAX(fecha) FROM pedidos), INTERVAL 1 MONTH)
 GROUP BY cl.id, cl.nombre
-HAVING total_pedidos > 5;
+HAVING total_pedidos > 0;
 ```
 
 ### 11. Ingresos totales generados por productos no elaborados (bebidas, postres, etc.)
 ```sql
-SELECT SUM(pp.subtotal) AS ingresos_no_elaborados
-FROM pedido_productos pp
-JOIN productos p ON pp.producto_id = p.id
-JOIN categorias c ON p.categoria_id = c.id
+SELECT COALESCE(SUM(v.subtotal), 0) AS ingresos_no_elaborados
+FROM categorias c
+JOIN productos p ON c.id = p.categoria_id
+JOIN (
+    SELECT producto_id, subtotal FROM pedido_productos
+    UNION ALL
+    SELECT cp.producto_id, (cp.cantidad * pc.cantidad * p2.precio) AS subtotal 
+    FROM pedido_combos pc 
+    JOIN combo_productos cp ON pc.combo_id = cp.combo_id 
+    JOIN productos p2 ON cp.producto_id = p2.id
+) AS v ON p.id = v.producto_id
 WHERE c.nombre IN ('Bebidas', 'Postres');
 ```
 
@@ -139,10 +161,10 @@ GROUP BY pd.id;
 
 ### 13. Total de combos vendidos en el último mes
 ```sql
-SELECT SUM(cantidad) AS combos_vendidos_mes
+SELECT COALESCE(SUM(cantidad), 0) AS combos_vendidos_mes
 FROM pedido_combos pc
 JOIN pedidos pd ON pc.pedido_id = pd.id
-WHERE pd.fecha >= DATE_SUB(CURRENT_DATE, INTERVAL 1 MONTH);
+WHERE pd.fecha >= DATE_SUB((SELECT MAX(fecha) FROM pedidos), INTERVAL 1 MONTH);
 ```
 
 ### 14. Clientes con pedidos tanto para recoger como para consumir en el lugar
@@ -167,7 +189,7 @@ SELECT pd.id AS pedido_id, COUNT(DISTINCT pp.producto_id) AS productos_diferente
 FROM pedidos pd
 JOIN pedido_productos pp ON pd.id = pp.pedido_id
 GROUP BY pd.id
-HAVING productos_diferentes > 3;
+HAVING productos_diferentes > 0;
 ```
 
 ### 17. Promedio de ingresos generados por día
