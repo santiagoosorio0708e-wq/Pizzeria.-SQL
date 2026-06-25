@@ -24,7 +24,7 @@ INSERT INTO productos (nombre, descripcion, precio, categoria_id) VALUES
 ('Jugo de Mora', 'Jugo natural en agua', 4000.00, 3),
 ('Brownie con Helado', 'Porción de brownie caliente con helado de vainilla', 8000.00, 4);
 
--- Relacionar Productos con Ingredientes
+
 INSERT INTO producto_ingredientes (producto_id, ingrediente_id) VALUES
 (1, 1), (1, 2), (1, 3), (1, 4),
 (2, 1), (2, 2), (2, 3), (2, 5), (2, 6),
@@ -41,7 +41,7 @@ INSERT INTO combos (nombre, descripcion, precio) VALUES
 ('Combo Pareja', '1 Pizza Mediana Hawaiana + 2 Jugos', 30000.00),
 ('Combo Familiar', '1 Pizza Pepperoni + 1 Panzarotti + 1 Gaseosa 1.5L', 40000.00);
 
--- Relacionar Combos con Productos
+
 INSERT INTO combo_productos (combo_id, producto_id, cantidad) VALUES
 (1, 2, 1), (1, 6, 2),
 (2, 1, 1), (2, 4, 1), (2, 5, 1);
@@ -51,7 +51,7 @@ INSERT INTO pedidos (cliente_id, fecha, tipo_pedido, estado, total) VALUES
 (2, '2023-10-25 20:15:00', 'Recoger', 'Listo', 40000.00),
 (3, '2023-10-26 13:00:00', 'En sitio', 'Pendiente', 39000.00);
 
--- Insertar Detalle de Productos en Pedidos (Pedido 1 y Pedido 3)
+
 INSERT INTO pedido_productos (pedido_id, producto_id, cantidad, precio_unitario, subtotal) VALUES
 (1, 1, 1, 25000.00, 25000.00),
 (3, 3, 1, 27000.00, 27000.00),

@@ -1,4 +1,3 @@
--- Creación de la base de datos
 CREATE DATABASE IF NOT EXISTS pizzeria_db;
 USE pizzeria_db;
 
@@ -29,7 +28,6 @@ CREATE TABLE ingredientes (
     nombre VARCHAR(100) NOT NULL
 );
 
--- Relación Productos - Ingredientes (para saber qué lleva una pizza/panzarotti)
 CREATE TABLE producto_ingredientes (
     producto_id INT NOT NULL,
     ingrediente_id INT NOT NULL,
@@ -70,7 +68,6 @@ CREATE TABLE pedidos (
     FOREIGN KEY (cliente_id) REFERENCES clientes(id)
 );
 
--- Detalle de Productos en el Pedido (productos individuales fuera de combos)
 CREATE TABLE pedido_productos (
     id INT AUTO_INCREMENT PRIMARY KEY,
     pedido_id INT NOT NULL,
